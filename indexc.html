@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App de Câmera</title>
+    <title>App de Câmera com Filtros</title>
     <style>
         * {
             box-sizing: border-box;
@@ -157,13 +157,19 @@
         </div>
     </div>
 
+    <div id="controls">
+        <button id="download-button" onclick="downloadPhoto()" style="display: none;">Baixar</button>
+    </div>
+
     <script>
         const video = document.getElementById('camera');
         const canvas = document.getElementById('canvas');
         const context = canvas.getContext('2d');
         const capturedPhoto = document.getElementById('captured-photo');
         const captureButton = document.getElementById('capture-button');
+        const downloadButton = document.getElementById('download-button');
         const moldFilter = document.getElementById('mold-filter');
+        const cameraControls = document.getElementById('camera-controls');
         let currentStream = null;
         let isFrontCamera = true;
         let lastCapturedImage = null;
@@ -209,18 +215,23 @@
             capturedPhoto.style.display = 'block';
             video.style.opacity = 0;
 
-            // Baixa a foto automaticamente
-            downloadPhoto(imageData);
-
-            // Esconde os controles e o botão de captura
-            captureButton.style.display = 'none';
+            cameraControls.style.display = 'none';
+            downloadButton.style.display = 'inline-block';
         }
 
-        // Função para download automático da foto
-        function downloadPhoto(imageData) {
+        function downloadPhoto() {
             const link = document.createElement('a');
-            link.href = imageData;
-            link.download = 'foto_com_moldura.png';  // Nome do arquivo para download
+            
+            // Obtém a data e hora atual
+            const now = new Date();
+            const date = now.toISOString().split('T')[0]; // Data no formato YYYY-MM-DD
+            const time = now.toTimeString().split(' ')[0].replace(/:/g, ''); // Hora no formato HHMMSS
+            
+            // Cria o nome do arquivo
+            const filename = `IMG_${date}_${time}.png`;
+
+            link.href = capturedPhoto.src;
+            link.download = filename;  // Usa o nome gerado para o arquivo
             link.click();
             resetToCamera();
         }
@@ -250,6 +261,7 @@
                 capturedPhoto.style.display = 'block';
                 video.style.opacity = 0;
                 captureButton.style.display = 'none';
+                downloadButton.style.display = 'inline-block';
             }
         }
 
@@ -257,6 +269,8 @@
             capturedPhoto.style.display = 'none';
             video.style.opacity = 1;
             captureButton.style.display = 'inline-block';
+            cameraControls.style.display = 'flex';
+            downloadButton.style.display = 'none';
         }
 
         window.addEventListener('load', initCamera);
