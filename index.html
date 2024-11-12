@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App de Câmera</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #f0f2f5;
+            color: #333;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 20px 0;
+            font-size: 1.8rem;
+            color: #333;
+        }
+
+        #camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 360px;
+            height: 640px;
+            overflow: hidden;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            background-color: #333;
+        }
+
+        #camera, #captured-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 15px;
+            display: block;
+            transition: opacity 0.3s ease;
+        }
+
+        #camera {
+            opacity: 1;
+        }
+
+        #captured-photo {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        #mold-filter {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            object-fit: cover;
+            z-index: 2;
+        }
+
+        #camera-controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 3;
+        }
+
+        .control-button {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .control-button:hover {
+            background-color: rgba(255, 255, 255, 1);
+        }
+
+        #capture-button {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 3px solid #333;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        #capture-button:hover {
+            background-color: rgba(255, 255, 255, 1);
+        }
+
+        #controls {
+            margin-top: 20px;
+        }
+
+        button, select {
+            padding: 10px 15px;
+            font-size: 1rem;
+            color: #fff;
+            background-color: #333;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover, select:hover {
+            background-color: #444;
+        }
+    </style>
+</head>
+<body>
+    <h1>App de Câmera com Filtros</h1>
+
+    <div id="camera-container">
+        <video id="camera" autoplay playsinline></video>
+        <img id="captured-photo" alt="Foto Capturada">
+        <canvas id="canvas" width="1080" height="1920"></canvas>
+
+        <img id="mold-filter" src="" alt="Filtro Mold" />
+
+        <div id="camera-controls">
+            <div class="control-button" onclick="toggleCamera()">
+                <img src="https://img.icons8.com/material-outlined/24/000000/switch-camera.png" alt="Alternar Câmera">
+            </div>
+            <div class="control-button" id="capture-button" onclick="capturePhoto()"></div>
+            <div class="control-button" onclick="viewLastPhoto()">
+                <img src="https://img.icons8.com/material-outlined/24/000000/image-gallery.png" alt="Visualizar Foto">
+            </div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="download-button" onclick="downloadPhoto()" style="display: none;">Baixar</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const capturedPhoto = document.getElementById('captured-photo');
+        const captureButton = document.getElementById('capture-button');
+        const downloadButton = document.getElementById('download-button');
+        const moldFilter = document.getElementById('mold-filter');
+        const cameraControls = document.getElementById('camera-controls');
+        let currentStream = null;
+        let isFrontCamera = true;
+        let lastCapturedImage = null;
+
+        const moldImage = new Image();
+
+        // Carregar a moldura salva (carregada apenas uma vez)
+        function loadSelectedFrame() {
+            const selectedFrame = localStorage.getItem('selectedFrame');
+            if (selectedFrame) {
+                moldImage.src = selectedFrame;
+                moldImage.onload = () => {
+                    moldFilter.src = selectedFrame;  // Aplica a moldura carregada
+                };
+            } else {
+                // Se não houver moldura salva, usa a padrão
+                moldImage.src = 'mold.png';
+                moldImage.onload = () => {
+                    moldFilter.src = 'mold.png';
+                };
+            }
+        }
+
+        // Função para iniciar a câmera com a maior qualidade possível
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+                video.srcObject = stream;
+                currentStream = stream;
+            } catch (error) {
+                alert('Erro ao acessar a câmera: ' + error.message);
+            }
+        }
+
+        // Função para capturar a foto
+        function capturePhoto() {
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+
+            canvas.width = videoWidth;
+            canvas.height = videoHeight;
+
+            // Desenha a imagem da câmera no canvas
+            context.drawImage(video, 0, 0, videoWidth, videoHeight);
+
+            // Converte o conteúdo do canvas para uma imagem base64
+            const imageData = canvas.toDataURL('image/png');
+            lastCapturedImage = imageData;
+
+            capturedPhoto.src = imageData;
+            capturedPhoto.style.display = 'block';
+            video.style.opacity = 0;
+
+            cameraControls.style.display = 'none';
+            downloadButton.style.display = 'inline-block';
+        }
+
+        function downloadPhoto() {
+            const link = document.createElement('a');
+            
+            // Obtém a data e hora atual
+            const now = new Date();
+            const date = now.toISOString().split('T')[0]; // Data no formato YYYY-MM-DD
+            const time = now.toTimeString().split(' ')[0].replace(/:/g, ''); // Hora no formato HHMMSS
+            
+            // Cria o nome do arquivo
+            const filename = `IMG_${date}_${time}.png`;
+
+            link.href = capturedPhoto.src;
+            link.download = filename;  // Usa o nome gerado para o arquivo
+            link.click();
+            resetToCamera();
+        }
+
+        async function toggleCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                const constraints = isFrontCamera
+                    ? { video: { facingMode: { exact: "environment" } } }
+                    : { video: { facingMode: { exact: "user" } } };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                currentStream = stream;
+                isFrontCamera = !isFrontCamera;
+            } catch (error) {
+                alert('Erro ao alternar a câmera: ' + error.message);
+            }
+        }
+
+        function resetToCamera() {
+            capturedPhoto.style.display = 'none';
+            video.style.opacity = 1;
+            cameraControls.style.display = 'flex';
+            downloadButton.style.display = 'none';
+        }
+
+        window.addEventListener('load', () => {
+            loadSelectedFrame();
+            initCamera();
+        });
+    </script>
+</body>
+</html>
