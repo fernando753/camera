@@ -160,14 +160,14 @@
     </style>
 </head>
 <body>
-    <h1>Câmera com Filtros</h1>
+    <h1>App de Câmera com Filtros</h1>
 
     <div id="camera-container">
         <video id="camera" autoplay playsinline></video>
         <img id="captured-photo" alt="Foto Capturada">
         <canvas id="canvas" width="1080" height="1920"></canvas>
 
-        <img id="mold-filter" src="" alt="Filtro Mold" />
+        <img id="mold-filter" src="mold.png" alt="Filtro Mold" />
 
         <div id="camera-controls">
             <div class="control-button" onclick="toggleCamera()">
@@ -192,7 +192,6 @@
         const captureButton = document.getElementById('capture-button');
         const downloadButton = document.getElementById('download-button');
         const moldFilter = document.getElementById('mold-filter');
-        const cameraControls = document.getElementById('camera-controls');
         let currentStream = null;
         let isFrontCamera = true;
         let lastCapturedImage = null;
@@ -228,6 +227,7 @@
                 });
                 video.srcObject = stream;
                 currentStream = stream;
+                console.log('Câmera inicializada');
             } catch (error) {
                 alert('Erro ao acessar a câmera: ' + error.message);
             }
@@ -237,6 +237,7 @@
         function capturePhoto() {
             const videoWidth = video.videoWidth;
             const videoHeight = video.videoHeight;
+            console.log(`Captura iniciada - Tamanho do vídeo: ${videoWidth}x${videoHeight}`);
 
             canvas.width = videoWidth;
             canvas.height = videoHeight;
@@ -257,6 +258,8 @@
 
             cameraControls.style.display = 'none';
             downloadButton.style.display = 'inline-block';
+
+            console.log('Foto capturada');
         }
 
         function downloadPhoto() {
